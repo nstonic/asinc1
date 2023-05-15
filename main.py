@@ -118,7 +118,7 @@ def get_frame_size(text):
     return rows, columns
 
 
-def check_space_ship_position(canvas, frame):
+def limit_space_ship_position(canvas, frame):
     global SPACE_SHIP_ROW
     global SPACE_SHIP_COLUMN
 
@@ -147,7 +147,7 @@ async def animate_spaceship(canvas):
         rows_direction, columns_direction, _ = read_controls(canvas)
         SPACE_SHIP_ROW += rows_direction
         SPACE_SHIP_COLUMN += columns_direction
-        check_space_ship_position(canvas, frame)
+        limit_space_ship_position(canvas, frame)
         draw_frame(canvas, SPACE_SHIP_ROW, SPACE_SHIP_COLUMN, frame)
         for _ in range(SPACE_SHIP_ANIMATION_SLOWDOWN):
             await asyncio.sleep(0)

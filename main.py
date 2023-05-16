@@ -9,17 +9,7 @@ from helpers import read_controls, draw_frame, get_frame_size
 
 TIC_TIMEOUT = 0.1
 STARS_COUNTER = 100
-
-SPACE_KEY_CODE = 32
-LEFT_KEY_CODE = 260
-RIGHT_KEY_CODE = 261
-UP_KEY_CODE = 259
-DOWN_KEY_CODE = 258
-
-ROW_SPEED = 1
-COLUMN_SPEED = 2
 FRAME_BORDER = 1
-
 SPACE_SHIP_FRAMES = [
     """
       .

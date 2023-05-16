@@ -127,12 +127,11 @@ async def blink(canvas, row, column, symbol='*', offset_tics=0):
         {'style': curses.A_NORMAL, 'delay': 3}
     ]
 
-    while True:
-        for frame in frames:
-            canvas.addstr(row, column, symbol, frame['style'])
-            delay = offset_tics + frame['delay']
-            for _ in range(delay):
-                await asyncio.sleep(0)
+    for frame in itertools.cycle(frames):
+        canvas.addstr(row, column, symbol, frame['style'])
+        delay = offset_tics + frame['delay']
+        for _ in range(delay):
+            await asyncio.sleep(0)
 
 
 def draw(canvas):

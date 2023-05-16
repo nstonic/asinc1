@@ -5,7 +5,9 @@ import random
 import textwrap
 import time
 
-TIC_TIMEOUT = 0.03
+from helpers import read_controls, draw_frame, get_frame_size
+
+TIC_TIMEOUT = 0.1
 STARS_COUNTER = 100
 
 SPACE_KEY_CODE = 32
@@ -14,11 +16,9 @@ RIGHT_KEY_CODE = 261
 UP_KEY_CODE = 259
 DOWN_KEY_CODE = 258
 
-SPACE_SHIP_ROW = 0
-SPACE_SHIP_COLUMN = 0
-SPACE_SHIP_ANIMATION_SLOWDOWN = 3
 ROW_SPEED = 1
 COLUMN_SPEED = 2
+FRAME_BORDER = 1
 
 SPACE_SHIP_FRAMES = [
     """
@@ -46,112 +46,57 @@ SPACE_SHIP_FRAMES = [
 ]
 
 
-def read_controls(canvas):
-    """Read keys pressed and returns tuple witl controls state."""
-
-    rows_direction = columns_direction = 0
-    space_pressed = False
-
-    while True:
-        pressed_key_code = canvas.getch()
-
-        if pressed_key_code == -1:
-            # https://docs.python.org/3/library/curses.html#curses.window.getch
-            break
-
-        if pressed_key_code == UP_KEY_CODE:
-            rows_direction = -ROW_SPEED
-
-        if pressed_key_code == DOWN_KEY_CODE:
-            rows_direction = ROW_SPEED
-
-        if pressed_key_code == RIGHT_KEY_CODE:
-            columns_direction = COLUMN_SPEED
-
-        if pressed_key_code == LEFT_KEY_CODE:
-            columns_direction = -COLUMN_SPEED
-
-        if pressed_key_code == SPACE_KEY_CODE:
-            space_pressed = True
-
-    return rows_direction, columns_direction, space_pressed
-
-
-def draw_frame(canvas, start_row, start_column, text, negative=False):
-    """Draw multiline text fragment on canvas, erase text instead of drawing if negative=True is specified."""
-
-    rows_number, columns_number = canvas.getmaxyx()
-
-    for row, line in enumerate(text.splitlines(), round(start_row)):
-        if row < 0:
-            continue
-
-        if row >= rows_number:
-            break
-
-        for column, symbol in enumerate(line, round(start_column)):
-            if column < 0:
-                continue
-
-            if column >= columns_number:
-                break
-
-            if symbol == ' ':
-                continue
-
-            # Check that current position it is not in a lower right corner of the window
-            # Curses will raise exception in that case. Don`t ask why…
-            # https://docs.python.org/3/library/curses.html#curses.window.addch
-            if row == rows_number - 1 and column == columns_number - 1:
-                continue
-
-            symbol = symbol if not negative else ' '
-            canvas.addch(row, column, symbol)
-
-
-def get_frame_size(text):
-    """Calculate size of multiline text fragment, return pair — number of rows and colums."""
-
-    lines = text.splitlines()
-    rows = len(lines)
-    columns = max([len(line) for line in lines])
-    return rows, columns
-
-
-def limit_space_ship_position(canvas, frame):
-    global SPACE_SHIP_ROW
-    global SPACE_SHIP_COLUMN
-
+def get_new_space_ship_position(
+        canvas,
+        frame,
+        space_ship_row,
+        space_ship_column,
+        controls
+):
+    rows_direction, columns_direction, _ = controls
     window_rows, window_columns = canvas.getmaxyx()
     frame_rows, frame_columns = get_frame_size(frame)
-    SPACE_SHIP_ROW = max(1, SPACE_SHIP_ROW)
-    SPACE_SHIP_ROW = min(SPACE_SHIP_ROW, window_rows - frame_rows - 1)
-    SPACE_SHIP_COLUMN = max(1, SPACE_SHIP_COLUMN)
-    SPACE_SHIP_COLUMN = min(SPACE_SHIP_COLUMN, window_columns - frame_columns-1)
+
+    space_ship_row = min(
+        max(FRAME_BORDER, space_ship_row + rows_direction),
+        window_rows - frame_rows - FRAME_BORDER
+    )
+    space_ship_column = min(
+        max(FRAME_BORDER, space_ship_column + columns_direction),
+        window_columns - frame_columns - FRAME_BORDER
+    )
+
+    return space_ship_row, space_ship_column
 
 
-def check_window_size(canvas):
-    window_rows, window_columns = canvas.getmaxyx()
-    for frame in SPACE_SHIP_FRAMES:
+def prepare_space_ship(window_rows, window_columns, space_ship_frames):
+    space_ship_frames = [
+        textwrap.dedent(frame.strip('\n'))
+        for frame in
+        space_ship_frames
+    ]
+    for frame in space_ship_frames:
         frame_rows, frame_columns = get_frame_size(frame)
         if frame_rows >= window_rows or frame_columns >= window_columns:
             raise ValueError('The window is too small')
+    space_ship_start_row = window_rows
+    space_ship_start_column = window_columns // 2
+    return space_ship_frames, space_ship_start_row, space_ship_start_column
 
 
-async def animate_spaceship(canvas):
-    global SPACE_SHIP_ROW
-    global SPACE_SHIP_COLUMN
-    check_window_size(canvas)
-
-    for frame in itertools.cycle(SPACE_SHIP_FRAMES):
-        rows_direction, columns_direction, _ = read_controls(canvas)
-        SPACE_SHIP_ROW += rows_direction
-        SPACE_SHIP_COLUMN += columns_direction
-        limit_space_ship_position(canvas, frame)
-        draw_frame(canvas, SPACE_SHIP_ROW, SPACE_SHIP_COLUMN, frame)
-        for _ in range(SPACE_SHIP_ANIMATION_SLOWDOWN):
-            await asyncio.sleep(0)
-        draw_frame(canvas, SPACE_SHIP_ROW, SPACE_SHIP_COLUMN, frame, negative=True)
+async def animate_spaceship(canvas, space_ship_row, space_ship_column, space_ship_frames):
+    for frame in itertools.cycle(space_ship_frames):
+        controls = read_controls(canvas)
+        space_ship_row, space_ship_column = get_new_space_ship_position(
+            canvas,
+            frame,
+            space_ship_row,
+            space_ship_column,
+            controls
+        )
+        draw_frame(canvas, space_ship_row, space_ship_column, frame)
+        await asyncio.sleep(0)
+        draw_frame(canvas, space_ship_row, space_ship_column, frame, negative=True)
 
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
@@ -184,7 +129,7 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         column += columns_speed
 
 
-async def blink(canvas, row, column, symbol='*'):
+async def blink(canvas, row, column, symbol='*', offset_tics=0):
     frames = [
         {'style': curses.A_DIM, 'delay': 20},
         {'style': curses.A_NORMAL, 'delay': 3},
@@ -195,44 +140,47 @@ async def blink(canvas, row, column, symbol='*'):
     while True:
         for frame in frames:
             canvas.addstr(row, column, symbol, frame['style'])
-            delay = random.randint(0, 5) + frame['delay']
+            delay = offset_tics + frame['delay']
             for _ in range(delay):
                 await asyncio.sleep(0)
 
 
 def draw(canvas):
-    global SPACE_SHIP_ROW
-    global SPACE_SHIP_COLUMN
-    global SPACE_SHIP_FRAMES
-
-    SPACE_SHIP_FRAMES = [
-        textwrap.dedent(frame.strip('\n'))
-        for frame in
-        SPACE_SHIP_FRAMES
-    ]
-
     window_rows, window_columns = canvas.getmaxyx()
-    SPACE_SHIP_ROW = window_rows
-    SPACE_SHIP_COLUMN = window_columns // 2
+    space_ship_frames, space_ship_start_row, space_ship_start_column = prepare_space_ship(
+        window_rows,
+        window_columns,
+        SPACE_SHIP_FRAMES
+    )
+
     star_sprites = '+*.#'
     stars = [
         blink(
             canvas=canvas,
-            row=random.randint(2, window_rows - 2),
-            column=random.randint(2, window_columns - 2),
-            symbol=random.choice(star_sprites)
+            row=random.randint(FRAME_BORDER * 2, window_rows - FRAME_BORDER * 2),
+            column=random.randint(FRAME_BORDER * 2, window_columns - FRAME_BORDER * 2),
+            symbol=random.choice(star_sprites),
+            offset_tics=random.randint(0, 5)
         )
         for _ in range(STARS_COUNTER)
     ]
     # fire_animation = fire(canvas, start_row=30, start_column=30)
-    space_ship_animation = animate_spaceship(canvas)
+    space_ship_animation = animate_spaceship(
+        canvas,
+        space_ship_start_row,
+        space_ship_start_column,
+        space_ship_frames
+    )
     coroutines = stars + [space_ship_animation]
     canvas.border()
     canvas.nodelay(True)
     curses.curs_set(False)
     while True:
-        for coroutine in coroutines:
-            coroutine.send(None)
+        for coroutine in coroutines.copy():
+            try:
+                coroutine.send(None)
+            except StopIteration:
+                coroutines.remove(coroutine)
         canvas.refresh()
         time.sleep(TIC_TIMEOUT)
 

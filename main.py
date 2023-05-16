@@ -126,12 +126,17 @@ async def blink(canvas, row, column, symbol='*', offset_tics=0):
         {'style': curses.A_BOLD, 'delay': 5},
         {'style': curses.A_NORMAL, 'delay': 3}
     ]
-
-    for frame in itertools.cycle(frames):
-        canvas.addstr(row, column, symbol, frame['style'])
-        delay = offset_tics + frame['delay']
-        for _ in range(delay):
-            await asyncio.sleep(0)
+    tics = 0
+    frame_num = 0
+    while True:
+        canvas.addstr(row, column, symbol, frames[frame_num]['style'])
+        tics += 1
+        delay = offset_tics + frames[frame_num]['delay']
+        if tics >= delay:
+            tics = 0
+            frame_num += 1
+            frame_num = frame_num % len(frames)
+        await asyncio.sleep(0)
 
 
 def draw(canvas):
@@ -143,7 +148,7 @@ def draw(canvas):
     )
 
     star_sprites = "+*·'˖•▪◦▫"
-    stars_quantity = window_rows * window_columns//STARS_DENSITY
+    stars_quantity = window_rows * window_columns // STARS_DENSITY
     stars = [
         blink(
             canvas=canvas,

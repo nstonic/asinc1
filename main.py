@@ -8,7 +8,7 @@ import time
 from helpers import read_controls, draw_frame, get_frame_size
 
 TIC_TIMEOUT = 0.1
-STARS_COUNTER = 100
+STARS_DENSITY = 50
 FRAME_BORDER = 1
 SPACE_SHIP_FRAMES = [
     """
@@ -143,7 +143,8 @@ def draw(canvas):
         SPACE_SHIP_FRAMES
     )
 
-    star_sprites = '+*.#'
+    star_sprites = "+*·'˖•▪◦▫"
+    stars_quantity = window_rows * window_columns//STARS_DENSITY
     stars = [
         blink(
             canvas=canvas,
@@ -152,9 +153,8 @@ def draw(canvas):
             symbol=random.choice(star_sprites),
             offset_tics=random.randint(0, 5)
         )
-        for _ in range(STARS_COUNTER)
+        for _ in range(stars_quantity)
     ]
-    # fire_animation = fire(canvas, start_row=30, start_column=30)
     space_ship_animation = animate_spaceship(
         canvas,
         space_ship_start_row,

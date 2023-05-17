@@ -7,9 +7,12 @@ import time
 
 from helpers import read_controls, draw_frame, get_frame_size
 
+COROUTINES = []
 TIC_TIMEOUT = 0.1
-STARS_DENSITY = 50
+STARS_DENSITY = 0.02
 FRAME_BORDER = 1
+SPACE_GARBAGE_FILE_PATH = 'space_garbage.txt'
+GARBAGE_APPEARING_DELAY = 15
 SPACE_SHIP_FRAMES = [
     """
       .
@@ -36,7 +39,7 @@ SPACE_SHIP_FRAMES = [
 ]
 
 
-def get_new_space_ship_position(
+def get_space_ship_position(
         canvas,
         frame,
         space_ship_row,
@@ -78,7 +81,7 @@ def prepare_space_ship(window_rows, window_columns, space_ship_frames):
 async def animate_spaceship(canvas, space_ship_row, space_ship_column, space_ship_frames):
     for frame in itertools.cycle(space_ship_frames):
         controls = read_controls(canvas)
-        space_ship_row, space_ship_column = get_new_space_ship_position(
+        space_ship_row, space_ship_column = get_space_ship_position(
             canvas,
             frame,
             space_ship_row,
@@ -88,6 +91,36 @@ async def animate_spaceship(canvas, space_ship_row, space_ship_column, space_shi
         draw_frame(canvas, space_ship_row, space_ship_column, frame)
         await asyncio.sleep(0)
         draw_frame(canvas, space_ship_row, space_ship_column, frame, negative=True)
+
+
+async def fill_orbit_with_garbage(canvas, garbage_frames, garbage_appearing_delay):
+    global COROUTINES
+    _, windows_columns = canvas.getmaxyx()
+    while True:
+        garbage_frame = random.choice(garbage_frames)
+        _, frame_columns = get_frame_size(garbage_frame)
+        column = random.randint(FRAME_BORDER, windows_columns - frame_columns - FRAME_BORDER)
+        COROUTINES.append(fly_garbage(canvas, column, garbage_frame))
+        for _ in range(garbage_appearing_delay):
+            await asyncio.sleep(0)
+
+
+async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+    """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
+    rows_number, columns_number = canvas.getmaxyx()
+
+    column = min(
+        max(column, 0),
+        columns_number - 1
+    )
+
+    row = FRAME_BORDER
+
+    while row < rows_number:
+        draw_frame(canvas, row, column, garbage_frame)
+        await asyncio.sleep(0)
+        draw_frame(canvas, row, column, garbage_frame, negative=True)
+        row += speed
 
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
@@ -141,15 +174,11 @@ async def blink(canvas, row, column, symbol='*', offset_tics=0):
 
 
 def draw(canvas):
+    global COROUTINES
     window_rows, window_columns = canvas.getmaxyx()
-    space_ship_frames, space_ship_start_row, space_ship_start_column = prepare_space_ship(
-        window_rows,
-        window_columns,
-        SPACE_SHIP_FRAMES
-    )
 
     star_sprites = "+*·˖•"
-    stars_quantity = window_rows * window_columns // STARS_DENSITY
+    stars_quantity = int(window_rows * window_columns * STARS_DENSITY)
     stars = [
         blink(
             canvas=canvas,
@@ -160,22 +189,37 @@ def draw(canvas):
         )
         for _ in range(stars_quantity)
     ]
+
+    space_ship_frames, space_ship_start_row, space_ship_start_column = prepare_space_ship(
+        window_rows,
+        window_columns,
+        SPACE_SHIP_FRAMES
+    )
     space_ship_animation = animate_spaceship(
         canvas,
         space_ship_start_row,
         space_ship_start_column,
         space_ship_frames
     )
-    coroutines = stars + [space_ship_animation]
+
+    with open(SPACE_GARBAGE_FILE_PATH) as file:
+        space_garbage_frames = file.read().split('\n\n')
+    garbage_animation = fill_orbit_with_garbage(
+        canvas,
+        space_garbage_frames,
+        GARBAGE_APPEARING_DELAY
+    )
+
+    COROUTINES = stars + [space_ship_animation, garbage_animation]
     canvas.border()
     canvas.nodelay(True)
     curses.curs_set(False)
     while True:
-        for coroutine in coroutines.copy():
+        for coroutine in COROUTINES.copy():
             try:
                 coroutine.send(None)
             except StopIteration:
-                coroutines.remove(coroutine)
+                COROUTINES.remove(coroutine)
         canvas.refresh()
         time.sleep(TIC_TIMEOUT)
 

@@ -65,6 +65,7 @@ def prepare_space_ship(window_rows, window_columns, space_ship_frames):
         for frame in
         space_ship_frames
     ]
+    space_ship_frames = sum(zip(space_ship_frames, space_ship_frames), ())
     for frame in space_ship_frames:
         frame_rows, frame_columns = get_frame_size(frame)
         if frame_rows >= window_rows or frame_columns >= window_columns:
@@ -75,7 +76,7 @@ def prepare_space_ship(window_rows, window_columns, space_ship_frames):
 
 
 async def animate_spaceship(canvas, space_ship_row, space_ship_column, space_ship_frames):
-    for frame in itertools.cycle(sum(zip(space_ship_frames, space_ship_frames), ())):
+    for frame in itertools.cycle(space_ship_frames):
         controls = read_controls(canvas)
         space_ship_row, space_ship_column = get_new_space_ship_position(
             canvas,

@@ -148,7 +148,7 @@ def draw(canvas):
         SPACE_SHIP_FRAMES
     )
 
-    star_sprites = "+*·'˖•▪◦▫"
+    star_sprites = "+*·˖•"
     stars_quantity = window_rows * window_columns // STARS_DENSITY
     stars = [
         blink(

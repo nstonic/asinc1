@@ -6,6 +6,7 @@ import textwrap
 import time
 
 from helpers import read_controls, draw_frame, get_frame_size
+from physics import update_speed
 
 COROUTINES = []
 TIC_TIMEOUT = 0.1
@@ -13,6 +14,8 @@ STARS_DENSITY = 0.02
 FRAME_BORDER = 1
 SPACE_GARBAGE_FILE_PATH = 'space_garbage.txt'
 GARBAGE_APPEARING_DELAY = 15
+SPACE_SHIP_ROW_SPEED = 1
+SPACE_SHIP_COLUMN_SPEED = 1
 SPACE_SHIP_FRAMES = [
     """
       .
@@ -39,23 +42,36 @@ SPACE_SHIP_FRAMES = [
 ]
 
 
+async def sleep(tics=1):
+    for _ in range(tics):
+        await asyncio.sleep(0)
+
+
 def get_space_ship_position(
         canvas,
         frame,
         space_ship_row,
         space_ship_column,
-        controls
+        rows_direction,
+        columns_direction
 ):
-    rows_direction, columns_direction, _ = controls
+    global SPACE_SHIP_ROW_SPEED
+    global SPACE_SHIP_COLUMN_SPEED
+
     window_rows, window_columns = canvas.getmaxyx()
     frame_rows, frame_columns = get_frame_size(frame)
-
+    SPACE_SHIP_ROW_SPEED, SPACE_SHIP_COLUMN_SPEED = update_speed(
+        SPACE_SHIP_ROW_SPEED,
+        SPACE_SHIP_COLUMN_SPEED,
+        rows_direction,
+        columns_direction
+    )
     space_ship_row = min(
-        max(FRAME_BORDER, space_ship_row + rows_direction),
+        max(FRAME_BORDER, space_ship_row + SPACE_SHIP_ROW_SPEED),
         window_rows - frame_rows - FRAME_BORDER
     )
     space_ship_column = min(
-        max(FRAME_BORDER, space_ship_column + columns_direction),
+        max(FRAME_BORDER, space_ship_column + SPACE_SHIP_COLUMN_SPEED),
         window_columns - frame_columns - FRAME_BORDER
     )
 
@@ -79,15 +95,27 @@ def prepare_space_ship(window_rows, window_columns, space_ship_frames):
 
 
 async def animate_spaceship(canvas, space_ship_row, space_ship_column, space_ship_frames):
+    global COROUTINES
     for frame in itertools.cycle(space_ship_frames):
-        controls = read_controls(canvas)
+        rows_direction, columns_direction, space_pressed = read_controls(canvas)
         space_ship_row, space_ship_column = get_space_ship_position(
             canvas,
             frame,
             space_ship_row,
             space_ship_column,
-            controls
+            rows_direction,
+            columns_direction
         )
+        if space_pressed:
+            _, columns = get_frame_size(space_ship_frames[0])
+
+            COROUTINES.append(
+                fire(
+                    canvas,
+                    space_ship_row,
+                    space_ship_column + columns // 2
+                )
+            )
         draw_frame(canvas, space_ship_row, space_ship_column, frame)
         await asyncio.sleep(0)
         draw_frame(canvas, space_ship_row, space_ship_column, frame, negative=True)
@@ -101,8 +129,7 @@ async def fill_orbit_with_garbage(canvas, garbage_frames, garbage_appearing_dela
         _, frame_columns = get_frame_size(garbage_frame)
         column = random.randint(FRAME_BORDER, windows_columns - frame_columns - FRAME_BORDER)
         COROUTINES.append(fly_garbage(canvas, column, garbage_frame))
-        for _ in range(garbage_appearing_delay):
-            await asyncio.sleep(0)
+        await sleep(garbage_appearing_delay)
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
@@ -211,7 +238,6 @@ def draw(canvas):
     )
 
     COROUTINES = stars + [space_ship_animation, garbage_animation]
-    canvas.border()
     canvas.nodelay(True)
     curses.curs_set(False)
     while True:

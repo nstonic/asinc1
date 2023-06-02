@@ -4,9 +4,6 @@ RIGHT_KEY_CODE = 261
 UP_KEY_CODE = 259
 DOWN_KEY_CODE = 258
 
-ROW_SPEED = 1
-COLUMN_SPEED = 2
-
 
 def read_controls(canvas):
     """Read keys pressed and returns tuple with controls state."""
@@ -21,16 +18,16 @@ def read_controls(canvas):
             break
 
         if pressed_key_code == UP_KEY_CODE:
-            rows_direction = -ROW_SPEED
+            rows_direction = -1
 
         if pressed_key_code == DOWN_KEY_CODE:
-            rows_direction = ROW_SPEED
+            rows_direction = 1
 
         if pressed_key_code == RIGHT_KEY_CODE:
-            columns_direction = COLUMN_SPEED
+            columns_direction = 1
 
         if pressed_key_code == LEFT_KEY_CODE:
-            columns_direction = -COLUMN_SPEED
+            columns_direction = -1
 
         if pressed_key_code == SPACE_KEY_CODE:
             space_pressed = True

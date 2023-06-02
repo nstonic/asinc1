@@ -14,8 +14,8 @@ STARS_DENSITY = 0.02
 FRAME_BORDER = 1
 SPACE_GARBAGE_FILE_PATH = 'space_garbage.txt'
 GARBAGE_APPEARING_DELAY = 15
-SPACE_SHIP_ROW_SPEED = 1
-SPACE_SHIP_COLUMN_SPEED = 1
+SPACE_SHIP_ROW_SPEED = 0
+SPACE_SHIP_COLUMN_SPEED = 0
 SPACE_SHIP_FRAMES = [
     """
       .
@@ -64,7 +64,9 @@ def get_space_ship_position(
         SPACE_SHIP_ROW_SPEED,
         SPACE_SHIP_COLUMN_SPEED,
         rows_direction,
-        columns_direction
+        columns_direction,
+        row_speed_limit=2,
+        column_speed_limit=4
     )
     space_ship_row = min(
         max(FRAME_BORDER, space_ship_row + SPACE_SHIP_ROW_SPEED),
@@ -113,7 +115,8 @@ async def animate_spaceship(canvas, space_ship_row, space_ship_column, space_shi
                 fire(
                     canvas,
                     space_ship_row,
-                    space_ship_column + columns // 2
+                    space_ship_column + columns // 2,
+                    rows_speed=-2
                 )
             )
         draw_frame(canvas, space_ship_row, space_ship_column, frame)
@@ -195,8 +198,7 @@ async def blink(canvas, row, column, symbol='*', offset_tics=0):
         delay = offset_tics + frames[frame_num]['delay']
         if tics >= delay:
             tics = 0
-            frame_num += 1
-            frame_num = frame_num % len(frames)
+            frame_num = (frame_num + 1) % len(frames)
         await asyncio.sleep(0)
 
 

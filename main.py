@@ -6,6 +6,7 @@ import textwrap
 import time
 
 from helpers import read_controls, draw_frame, get_frame_size
+from obstacles import Obstacle
 from physics import update_speed
 
 COROUTINES = []
@@ -14,6 +15,7 @@ STARS_DENSITY = 0.02
 FRAME_BORDER = 1
 SPACE_GARBAGE_FILE_PATH = 'space_garbage.txt'
 GARBAGE_APPEARING_DELAY = 15
+OBSTACLES = []
 SPACE_SHIP_ROW_SPEED = 0
 SPACE_SHIP_COLUMN_SPEED = 0
 SPACE_SHIP_FRAMES = [
@@ -137,24 +139,53 @@ async def fill_orbit_with_garbage(canvas, garbage_frames, garbage_appearing_dela
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
     """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
-    rows_number, columns_number = canvas.getmaxyx()
+    global OBSTACLES
 
+    rows_number, columns_number = canvas.getmaxyx()
+    garbage_rows, garbage_columns = get_frame_size(garbage_frame)
     column = min(
         max(column, 0),
-        columns_number - 1
+        columns_number - FRAME_BORDER
     )
+    row = -garbage_rows
 
-    row = FRAME_BORDER
-
+    obstacle = Obstacle(
+        row + 1,
+        column,
+        rows_size=garbage_rows,
+        columns_size=garbage_columns - 1
+    )
+    OBSTACLES.append(obstacle)
     while row < rows_number:
         draw_frame(canvas, row, column, garbage_frame)
         await asyncio.sleep(0)
         draw_frame(canvas, row, column, garbage_frame, negative=True)
         row += speed
+        obstacle.row = row
+    OBSTACLES.remove(obstacle)
+
+
+async def show_obstacles(canvas, obstacles):
+    """Display bounding boxes of every obstacle in a list"""
+
+    while True:
+        boxes = []
+
+        for obstacle in obstacles:
+            boxes.append(obstacle.dump_bounding_box())
+
+        for row, column, frame in boxes:
+            draw_frame(canvas, row, column, frame)
+
+        await asyncio.sleep(0)
+
+        for row, column, frame in boxes:
+            draw_frame(canvas, row, column, frame, negative=True)
 
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
     """Display animation of gun shot, direction and speed can be specified."""
+    global OBSTACLES
 
     row, column = start_row, start_column
 
@@ -176,6 +207,13 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
     curses.beep()
 
     while 0 < row < max_row and 0 < column < max_column:
+        for obstacle in OBSTACLES:
+            if obstacle.has_collision(
+                    obj_corner_row=row,
+                    obj_corner_column=column
+            ):
+                return
+
         canvas.addstr(round(row), round(column), symbol)
         await asyncio.sleep(0)
         canvas.addstr(round(row), round(column), ' ')
@@ -204,6 +242,8 @@ async def blink(canvas, row, column, symbol='*', offset_tics=0):
 
 def draw(canvas):
     global COROUTINES
+    global OBSTACLES
+
     window_rows, window_columns = canvas.getmaxyx()
 
     star_sprites = "+*·˖•"
@@ -211,8 +251,8 @@ def draw(canvas):
     stars = [
         blink(
             canvas=canvas,
-            row=random.randint(FRAME_BORDER * 2, window_rows - FRAME_BORDER * 2),
-            column=random.randint(FRAME_BORDER * 2, window_columns - FRAME_BORDER * 2),
+            row=random.randint(FRAME_BORDER, window_rows - FRAME_BORDER),
+            column=random.randint(FRAME_BORDER, window_columns - FRAME_BORDER),
             symbol=random.choice(star_sprites),
             offset_tics=random.randint(0, 5)
         )
@@ -238,6 +278,8 @@ def draw(canvas):
         space_garbage_frames,
         GARBAGE_APPEARING_DELAY
     )
+
+    # obstacles_animation = show_obstacles(canvas, OBSTACLES)
 
     COROUTINES = stars + [space_ship_animation, garbage_animation]
     canvas.nodelay(True)

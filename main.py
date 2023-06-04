@@ -43,6 +43,46 @@ SPACE_SHIP_FRAMES = [
       """
 ]
 
+EXPLOSION_FRAMES = [
+    """\
+           (_)
+       (  (   (  (
+      () (  (  )
+        ( )  ()
+    """,
+    """\
+           (_)
+       (  (   (
+         (  (  )
+          )  (
+    """,
+    """\
+            (
+          (   (
+         (     (
+          )  (
+    """,
+    """\
+            (
+              (
+            (
+    """,
+]
+
+
+async def explode(canvas, center_row, center_column):
+    rows, columns = get_frame_size(EXPLOSION_FRAMES[0])
+    corner_row = center_row - rows / 2
+    corner_column = center_column - columns / 2
+
+    curses.beep()
+    for frame in EXPLOSION_FRAMES:
+        draw_frame(canvas, corner_row, corner_column, frame)
+
+        await asyncio.sleep(0)
+        draw_frame(canvas, corner_row, corner_column, frame, negative=True)
+        await asyncio.sleep(0)
+
 
 async def sleep(tics=1):
     for _ in range(tics):
@@ -140,6 +180,7 @@ async def fill_orbit_with_garbage(canvas, garbage_frames, garbage_appearing_dela
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
     """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
     global OBSTACLES
+    global COROUTINES
 
     rows_number, columns_number = canvas.getmaxyx()
     garbage_rows, garbage_columns = get_frame_size(garbage_frame)
@@ -157,6 +198,9 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
     )
     OBSTACLES.append(obstacle)
     while row < rows_number:
+        if obstacle.destroyed:
+            OBSTACLES.remove(obstacle)
+            return
         draw_frame(canvas, row, column, garbage_frame)
         await asyncio.sleep(0)
         draw_frame(canvas, row, column, garbage_frame, negative=True)
@@ -212,6 +256,8 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
                     obj_corner_row=row,
                     obj_corner_column=column
             ):
+                obstacle.destroyed = True
+                COROUTINES.append(explode(canvas, row, column))
                 return
 
         canvas.addstr(round(row), round(column), symbol)
@@ -278,8 +324,6 @@ def draw(canvas):
         space_garbage_frames,
         GARBAGE_APPEARING_DELAY
     )
-
-    # obstacles_animation = show_obstacles(canvas, OBSTACLES)
 
     COROUTINES = stars + [space_ship_animation, garbage_animation]
     canvas.nodelay(True)

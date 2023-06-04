@@ -1,11 +1,11 @@
 class Obstacle:
 
-    def __init__(self, row, column, rows_size=1, columns_size=1, uid=None):
+    def __init__(self, row, column, rows_size=1, columns_size=1):
         self.row = row
         self.column = column
         self.rows_size = rows_size
         self.columns_size = columns_size
-        self.uid = uid
+        self.destroyed = False
 
     def get_bounding_box_frame(self):
         # increment box size to compensate obstacle movement

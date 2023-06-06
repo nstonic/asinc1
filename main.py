@@ -145,7 +145,7 @@ async def fill_orbit_with_garbage(canvas, garbage_frames):
         garbage_frame = random.choice(garbage_frames)
         _, frame_columns = get_frame_size(garbage_frame)
         column = random.randint(TOP_FRAME_BORDER, windows_columns - frame_columns - FRAME_BORDER)
-        COROUTINES.append(fly_garbage(canvas, column, garbage_frame))
+        COROUTINES.append(fly_garbage(canvas, column, garbage_frame, speed=random.uniform(0.2, 0.7)))
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):

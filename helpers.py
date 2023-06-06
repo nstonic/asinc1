@@ -3,6 +3,24 @@ LEFT_KEY_CODE = 260
 RIGHT_KEY_CODE = 261
 UP_KEY_CODE = 259
 DOWN_KEY_CODE = 258
+TOP_FRAME_BORDER = 3
+
+
+def get_garbage_delay_tics(year):
+    if year < 1961:
+        return None
+    elif year < 1969:
+        return 20
+    elif year < 1981:
+        return 14
+    elif year < 1995:
+        return 10
+    elif year < 2010:
+        return 8
+    elif year < 2020:
+        return 6
+    else:
+        return 2
 
 
 def read_controls(canvas):
@@ -41,7 +59,7 @@ def draw_frame(canvas, start_row, start_column, text, negative=False):
     rows_number, columns_number = canvas.getmaxyx()
 
     for row, line in enumerate(text.splitlines(), round(start_row)):
-        if row < 0:
+        if row < TOP_FRAME_BORDER:
             continue
 
         if row >= rows_number:

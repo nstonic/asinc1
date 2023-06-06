@@ -115,9 +115,8 @@ async def animate_spaceship(canvas, space_ship_row, space_ship_column, space_shi
                     show_game_over(canvas)
                 )
                 return
-        if space_pressed:
+        if space_pressed and YEAR >= PLASMA_GUN_CREATED_AT:
             _, columns = get_frame_size(space_ship_frames[0])
-
             COROUTINES.append(
                 fire(
                     canvas,
@@ -139,13 +138,22 @@ async def fill_orbit_with_garbage(canvas, garbage_frames):
         garbage_appearing_delay = get_garbage_delay_tics(YEAR)
         if not garbage_appearing_delay:
             await asyncio.sleep(0)
-            continue
         else:
+            garbage_frame = random.choice(garbage_frames)
+            _, frame_columns = get_frame_size(garbage_frame)
+            column = random.randint(
+                TOP_FRAME_BORDER,
+                windows_columns - frame_columns - FRAME_BORDER
+            )
+            COROUTINES.append(
+                fly_garbage(
+                    canvas,
+                    column,
+                    garbage_frame,
+                    speed=random.uniform(0.2, 0.7)
+                )
+            )
             await sleep(garbage_appearing_delay)
-        garbage_frame = random.choice(garbage_frames)
-        _, frame_columns = get_frame_size(garbage_frame)
-        column = random.randint(TOP_FRAME_BORDER, windows_columns - frame_columns - FRAME_BORDER)
-        COROUTINES.append(fly_garbage(canvas, column, garbage_frame, speed=random.uniform(0.2, 0.7)))
 
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
@@ -226,9 +234,6 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
     global POINTS
     global YEAR
 
-    if YEAR < PLASMA_GUN_CREATED_AT:
-        return
-
     row, column = start_row, start_column
 
     canvas.addstr(round(row), round(column), '*')
@@ -287,8 +292,6 @@ async def blink(canvas, row, column, symbol='*', offset_tics=0):
 
 def draw(canvas):
     global COROUTINES
-    global OBSTACLES
-    global YEAR
 
     window_rows, window_columns = canvas.getmaxyx()
 
